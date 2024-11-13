@@ -11,28 +11,29 @@ import numpy as np
 
 model = YOLO("yolo11n.pt", verbose=False)
 
-def gen_bbox_human(img, acc=0.5):
-    results = model(img)
+def gen_bbox_human(img, acc=0.6):
+
+    results = model.predict(
+        img, 
+        save=True, 
+        save_txt=False, 
+        show_conf=False,
+        conf = acc,
+        classes=[0],
+        project="output", name="o_1", exist_ok=True
+    )
 
     bbox = results[0].boxes
-    cls_res = bbox.cls.cpu().detach().numpy()
-
-    mark_people = np.where(cls_res == 0)
-    acc_res = bbox.conf.cpu().detach().numpy()[mark_people]
-
-    mark_acc = np.where(acc_res > acc)
-
-    acc_res = acc_res[mark_acc]
-
-    pos_res = bbox.xyxy.cpu().detach().numpy()[mark_people][mark_acc]
-
+    # cls_res = bbox.cls.cpu().detach().numpy()
+    # acc_res = bbox.conf.cpu().detach().numpy()
+    pos_res = bbox.xyxy.cpu().detach().numpy()
     # img = draw_rect(img, pos_res)
 
     return pos_res
 
 def draw_rect(img, pos_res):
     color = (255, 0, 255)
-    thickness = 4
+    thickness = 1
     
     for pos in pos_res:
         x1, y1, x2, y2 = pos
@@ -44,6 +45,7 @@ def draw_rect(img, pos_res):
         img = cv2.rectangle(img, start_point, end_point, color, thickness)
     
     return img
+
 # img = cv2.imread("bus.jpg")
 
 # res = gen_bbox_human(img)
