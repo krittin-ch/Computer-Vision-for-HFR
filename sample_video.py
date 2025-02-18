@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 from opencv_video_mod import * 
 
 foldername = 'sample_videos/'
@@ -6,7 +5,6 @@ filename = 'v3'
 
 show_video(foldername, 'v1', if_show=False, det_rate=10)
 # show_video(foldername, 'v3', if_show=False)
-=======
 import numpy as np
 import cv2 as cv
 from bbox_human import gen_bbox_human, draw_rect
@@ -40,7 +38,3 @@ while cap.isOpened():
 
 cap.release()
 cv.destroyAllWindows()
-<<<<<<< HEAD
->>>>>>> 2e8baf463048623f84dc5477f04d2fae51dba050
-=======
->>>>>>> 2e8baf463048623f84dc5477f04d2fae51dba050

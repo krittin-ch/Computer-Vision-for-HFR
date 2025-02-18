@@ -1,6 +1,5 @@
 *.MOV
 *.avi
-<<<<<<< HEAD
 *.mp4
 *.txt
 *.jpg
@@ -8,8 +7,3 @@
 output/*
 sample_images/*
 sample_videos/*
-=======
-*.jpg
-*.png
-output/*
->>>>>>> 2e8baf463048623f84dc5477f04d2fae51dba050
