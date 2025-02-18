@@ -40,4 +40,7 @@ while cap.isOpened():
 
 cap.release()
 cv.destroyAllWindows()
+<<<<<<< HEAD
+>>>>>>> 2e8baf463048623f84dc5477f04d2fae51dba050
+=======
 >>>>>>> 2e8baf463048623f84dc5477f04d2fae51dba050

@@ -6,6 +6,7 @@ from typing import Tuple, Optional
 model = YOLO("yolo11n.pt", verbose=False)
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 
 # def gen_bbox_human(img, acc=0.8):
 
@@ -73,6 +74,8 @@ def gen_bbox_human(img: np.ndarray, acc: float=0.8) -> np.array:
         conf = acc,
         classes=[0],        # class '0' is for human. Therefore, detecting only human
 =======
+=======
+>>>>>>> 2e8baf463048623f84dc5477f04d2fae51dba050
 def gen_bbox_human(img, acc=0.6):
 
     results = model.predict(
@@ -82,16 +85,22 @@ def gen_bbox_human(img, acc=0.6):
         show_conf=False,
         conf = acc,
         classes=[0],
+<<<<<<< HEAD
+>>>>>>> 2e8baf463048623f84dc5477f04d2fae51dba050
+=======
 >>>>>>> 2e8baf463048623f84dc5477f04d2fae51dba050
         project="output", name="o_1", exist_ok=True
     )
 
     bbox = results[0].boxes
 <<<<<<< HEAD
+<<<<<<< HEAD
     # in case, the model is run on GPU, 
     # we need to convert the data into CPU for visualization
     pos_res = bbox.xyxy.cpu().detach().numpy()  
 =======
+=======
+>>>>>>> 2e8baf463048623f84dc5477f04d2fae51dba050
     # cls_res = bbox.cls.cpu().detach().numpy()
     # acc_res = bbox.conf.cpu().detach().numpy()
     pos_res = bbox.xyxy.cpu().detach().numpy()
