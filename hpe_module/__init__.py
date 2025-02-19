@@ -14,7 +14,7 @@ def scale_bbox(bbox, scale):
     y= max(bbox[1] + bbox[3]/2 - w/2,0)
     return np.asarray([x,y,w,w],np.int64)
 
-def genAxis(input_img_path, output_img_path):
+def genAxis(frame):
     # Setup
     # face_cascade = cv2.CascadeClassifier('hpe_module/lbpcascade_frontalface_improved.xml')
     face_cascade = cv2.CascadeClassifier('hpe_module/haarcascade_frontalface_alt.xml')
@@ -28,7 +28,6 @@ def genAxis(input_img_path, output_img_path):
                                                               std=[0.229, 0.224, 0.225])])
     
     # Import image
-    frame = cv2.imread(input_img_path)
     gray_img = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     
     faces = face_cascade.detectMultiScale(gray_img, 1.2)
@@ -53,9 +52,17 @@ def genAxis(input_img_path, output_img_path):
             print("inference time: %.3f ms/face"%((time.time()-start)/len(roll)*1000))
             for img, r,y,p in zip(face_images, roll,yaw,pitch):
                 headpose = [r,y,p]
-                drawAxis(img, headpose,size=50)
+                drawAxis(img, headpose, size=50)
+
+    return frame
+    # cv2.imwrite(output_img_path, frame)
+
+def saveImgAxis(input_img_path, output_img_path):
+    frame = cv2.imread(input_img_path)
+    frame = genAxis(frame)
 
     cv2.imwrite(output_img_path, frame)
+
 
 def getAxis(frame):
     # Setup
@@ -85,14 +92,19 @@ def getAxis(frame):
         face_images.append(face_img)
         pil_img = Image.fromarray(cv2.cvtColor(cv2.resize(face_img,(224,224)), cv2.COLOR_BGR2RGB)) # downsample image
         face_tensors.append(transform_test(pil_img)[None])
+
     
     # generate row, pitch, yaw axis
     if len(face_tensors)>0:
         with torch.no_grad():
-            start = time.time()
             face_tensors = torch.cat(face_tensors,dim=0)
-            head_pose = pose_estimator(face_tensors)
+            roll, yaw, pitch = pose_estimator(face_tensors)
+            for img, r,y,p in zip(face_images, roll,yaw,pitch):
+                headpose = [r,y,p]
+                drawAxis(img, headpose, size=50)
 
-            return head_pose
+            hpe_out = (roll, pitch, yaw)
+
+            return frame, hpe_out
         
     return None
