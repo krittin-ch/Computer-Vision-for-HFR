@@ -2,8 +2,3 @@
 *.avi
 *.mp4
 *.txt
-*.jpg
-*.png
-output/*
-sample_images/*
-sample_videos/*

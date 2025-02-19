@@ -17,7 +17,7 @@ if not cap.isOpened():
     print("Error: Could not open camera.")
     exit()
 
-target_track_id = None
+# target_track_id = None
 while True:
     # Capture frame-by-frame
     ret, frame = cap.read()
@@ -30,7 +30,8 @@ while True:
     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
     # Run YOLO model on the frame
-    results = model(rgb_frame, conf=0.4, classes=[0, 1, 2, 3, 4, 5, 6, 7])
+    results = model(rgb_frame, conf=0.4, classes=[0])
+    # results = model(rgb_frame, conf=0.9)
 
     detections = []
     for result in results:
@@ -45,20 +46,20 @@ while True:
     # Update DeepSORT tracker
     tracks = tracker.update_tracks(detections, frame=frame)
 
-    if target_track_id is None:
-        for track in tracks:
-            if track.is_confirmed():
-                target_track_id = track.track_id
-                print(f"Target Assigned: {target_track_id}")
-                break  # Assign only one person
+    # if target_track_id is None:
+    #     for track in tracks:
+    #         if track.is_confirmed():
+    #             target_track_id = track.track_id
+    #             print(f"Target Assigned: {target_track_id}")
+    #             break  # Assign only one person
 
     # Draw bounding boxes and track IDs
     for track in tracks:
         if not track.is_confirmed():
             continue
 
-        if track.track_id != target_track_id:
-            continue
+        # if track.track_id != target_track_id:
+        #     continue
         
         track_id = track.track_id
         ltrb = track.to_ltrb()  # Get left, top, right, bottom format
