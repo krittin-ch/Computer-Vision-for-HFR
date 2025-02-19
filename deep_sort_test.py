@@ -54,6 +54,7 @@ while True:
     #             break  # Assign only one person
 
     # Draw bounding boxes and track IDs
+    count += 1
     for track in tracks:
         if not track.is_confirmed():
             continue
