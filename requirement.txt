@@ -1,3 +1,6 @@
 scikit-learn
 xgboost
 mediapipe-rpi4
+pytorch
+torchvision
+torchaudiow
