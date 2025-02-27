@@ -80,7 +80,7 @@ def getAxis(frame):
     # Import image
     gray_img = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     
-    faces = face_cascade.detectMultiScale(gray_img, 1.2)
+    faces = face_cascade.detectMultiScale(gray_img, 1.2) # x, y, w, h
 
     # Find bbox of faces in a frame
     face_images = []
@@ -93,7 +93,7 @@ def getAxis(frame):
         pil_img = Image.fromarray(cv2.cvtColor(cv2.resize(face_img,(224,224)), cv2.COLOR_BGR2RGB)) # downsample image
         face_tensors.append(transform_test(pil_img)[None])
 
-    
+
     # generate row, pitch, yaw axis
     if len(face_tensors)>0:
         with torch.no_grad():
@@ -106,5 +106,50 @@ def getAxis(frame):
             hpe_out = (roll, pitch, yaw)
 
             return frame, hpe_out
+        
+    return None
+
+def getHPAxis(frame):
+    # Setup
+    # face_cascade = cv2.CascadeClassifier('hpe_module/lbpcascade_frontalface_improved.xml')
+    face_cascade = cv2.CascadeClassifier('hpe_module/haarcascade_frontalface_alt.xml')
+    pose_estimator = Network(bin_train=False)
+    load_snapshot(pose_estimator,"hpe_module/models/model-b66.pkl")
+    pose_estimator = pose_estimator.eval()
+
+    transform_test = transforms.Compose([transforms.CenterCrop(224),
+                                         transforms.ToTensor(),
+                                         transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                                              std=[0.229, 0.224, 0.225])])
+    
+    # Import image
+    gray_img = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    
+    faces = face_cascade.detectMultiScale(gray_img, 1.2) # x, y, w, h
+
+    # Find bbox of faces in a frame
+    # face_images = []
+    face_tensors = []
+    for i, bbox in enumerate(faces):
+        x,y, w,h = scale_bbox(bbox,1.5)
+        frame = cv2.rectangle(frame,(x,y), (x+w, y+h),color=(0,0,255),thickness=2)
+        face_img = frame[y:y+h,x:x+w]
+        # face_images.append(face_img)
+        pil_img = Image.fromarray(cv2.cvtColor(cv2.resize(face_img,(224,224)), cv2.COLOR_BGR2RGB)) # downsample image
+        face_tensors.append(transform_test(pil_img)[None])
+
+
+    # generate row, pitch, yaw axis
+    if len(face_tensors)>0:
+        with torch.no_grad():
+            face_tensors = torch.cat(face_tensors,dim=0)
+            roll, yaw, pitch = pose_estimator(face_tensors)
+            # for img, r,y,p in zip(face_images, roll,yaw,pitch):
+            #     headpose = [r,y,p]
+            #     drawAxis(img, headpose, size=50)
+
+            hpe_out = (roll, pitch, yaw)
+
+            return faces, hpe_out
         
     return None
