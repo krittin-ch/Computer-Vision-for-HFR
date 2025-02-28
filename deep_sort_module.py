@@ -45,12 +45,9 @@ class DeepHFR():
         """
 
     def track_body(self, frame):
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-        results = self.body_model(rgb_frame, conf=0.4, classes=[0])
+        results = self.body_model(frame, conf=0.4, classes=[0])
 
         detections = []
-        body_bboxes = []
         for result in results:
             for box in result.boxes:
                 x1, y1, x2, y2 = map(int, box.xyxy[0])
@@ -58,12 +55,14 @@ class DeepHFR():
                 cls = int(box.cls[0]) 
 
                 detections.append(([x1, y1, x2 - x1, y2 - y1], conf, cls)) # x, y, w, h
-                body_bboxes.append([x1, x2, y1, y2])
         self.tracks = self.body_tracker.update_tracks(detections, frame=frame) # collect all tracks
 
     def find_target(self, frame):
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        self.track_body(frame)
+
         if self.tracks is None: 
-            return None, None, None, None
+            return None
 
         face_bbox = None
         for track in self.tracks: 
@@ -72,30 +71,44 @@ class DeepHFR():
             body_bbox = map(int, ltrb)
 
             x1, y1, x2, y2 = body_bbox
-            f_bbox, hpe = getHPAxis(frame[y1:y2, x1:x2])
-
-            for i, bbox, hpe_i in enumerate(f_bbox, hpe):
-                x,y, w,h = self.scale_bbox(bbox,1.5)
-                face_encoding = face_recognition.face_encodings(frame[y:y+h,x:x+w])[0]
-                matches = face_recognition.compare_faces(self.target_encoding, face_encoding, tolerance=0.3)
-
-                if matches:                
-                    self.target_track_id.append(track_id)
-                    face_bbox = (x, x+w, y, y+h)
-                
-                    return body_bbox, face_bbox, hpe_i, track_id
             
-            return None, None, None, None
+            if_process = True
+            try:
+                f_bbox, hpe = getHPAxis(frame[y1:y2, x1:x2])
+
+            except:
+                if_process = False
+                pass
+
+            if not if_process or len(f_bbox) == 0: continue
+
+            for i, (bbox, hpe_i) in enumerate(zip(f_bbox, hpe)):
+                x,y, w,h = self.scale_bbox(bbox,1.5)
+                
+                face_encoding = face_recognition.face_encodings(frame[y1:y2, x1:x2][y:y+h, x:x+w])
+                
+                if len(face_encoding) > 0:
+                    matches = face_recognition.compare_faces(self.target_encoding, face_encoding[0], tolerance=0.3)
+                    if matches:                
+                        self.target_track_id.append(track_id)
+                        face_bbox = (x, x+w, y, y+h)
+                    
+                        return body_bbox, face_bbox, hpe_i, track_id
+            
+            return None
 
 
     def run_system(self, frame, if_draw_body=True, if_draw_face=True, if_draw_axis=True):
-        body_bbox, face_bbox, hpe, track_id = self.find_target(frame)
+        target_val = self.find_target(frame)
 
-        if if_draw_body:
-            self.draw_body(frame, track_id, body_bbox)
+        if target_val is not None:
+            body_bbox, face_bbox, hpe, track_id = target_val
 
-        if if_draw_face:
-            self.draw_face(face_bbox, hpe, if_draw_axis)
+            if if_draw_body:
+                self.draw_body(frame, track_id, body_bbox)
+
+            if if_draw_face:
+                self.draw_face(face_bbox, hpe, if_draw_axis)
 
 
     def scale_bbox(self, bbox, scale):
