@@ -12,7 +12,7 @@ import time
 from tqdm import tqdm
 
 class DeepHFR():
-    def __init__(self, target_body_dir, target_face):
+    def __init__(self, target_face, target_body_dir=None):
 
         self.body_model = YOLO("yolo11n.pt")
         self.body_tracker = DeepSort(max_age=1800)
@@ -32,49 +32,46 @@ class DeepHFR():
         # sample images in track id
         self.target_track_id = [] # {[id_1, id_2, ...]
         
-        # for filename in os.listdir(target_body_dir):
         
-        print("START PROCESSING")
-        files = [f for f in os.listdir(target_body_dir) if os.path.isfile(os.path.join(target_body_dir, f))]
-        for filename in tqdm(files, desc="Processing images", unit="file"):
-            file_dir = os.path.join(target_body_dir, filename)
-            if os.path.isfile(file_dir):
-                frame = cv2.imread(file_dir, cv2.IMREAD_COLOR_BGR)
-                self.track_body(frame, False)
-            
-                for track in self.tracks: 
-                    track_id = track.track_id
-                    if track_id not in self.target_track_id:
-                        self.target_track_id.append(track_id)
+        if target_body_dir is not None:
+            files = [f for f in os.listdir(target_body_dir) if os.path.isfile(os.path.join(target_body_dir, f))]
+            for filename in tqdm(files, desc="Processing images", unit="file"):
+                file_dir = os.path.join(target_body_dir, filename)
+                if os.path.isfile(file_dir):
+                    frame = cv2.imread(file_dir, cv2.IMREAD_COLOR_BGR)
+                    self.track_body(frame, False)
+                
+                    for track in self.tracks: 
+                        track_id = track.track_id
+                        if track_id not in self.target_track_id:
+                            self.target_track_id.append(track_id)
 
-                    # Example: Drawing a rectangle (modify based on tracker output)
-                    ltrb = track.to_ltrb()  # Get left, top, right, bottom format
-                    body_bbox = map(int, ltrb)
-                    self.draw_body(frame, body_bbox, track_id)
-                    
-                    face_locations = face_recognition.face_locations(frame)
-                    for i in face_locations:
-                        self.draw_face(frame, i, None, False)
+        #                 ltrb = track.to_ltrb()  # Get left, top, right, bottom format
+        #                 body_bbox = map(int, ltrb)
+        #                 self.draw_body(frame, body_bbox, track_id)
+                        
+        #                 face_locations = face_recognition.face_locations(frame)
+        #                 for face_loc in face_locations:
+        #                     top, right, bottom, left  = face_loc
 
-                frame = cv2.resize(frame, (1280, 720), interpolation=cv2.INTER_AREA)
+        #                     # x1 = left, y1 = top, x2 = right, y2 = bottom 
+        #                     self.draw_face(frame, (left, top, right, bottom), None, False)
 
-                # Display the frame
-                cv2.imshow("Tracking Visualization", frame)
-                key = cv2.waitKey(1)  # Adjust delay if needed
+        #             frame = cv2.resize(frame, (1280, 720), interpolation=cv2.INTER_AREA)
 
-                # Press 'q' to exit visualization early
-                if key & 0xFF == ord('q'):
-                    break
+        #             # Display the frame
+        #             cv2.imshow("Tracking Visualization", frame)
+        #             key = cv2.waitKey(1)  # Adjust delay if needed
 
-                # time.sleep(1)
+        #             # Press 'q' to exit visualization early
+        #             if key & 0xFF == ord('q'):
+        #                 break
 
-        cv2.destroyAllWindows()  # Close OpenCV windows when done
-        
-        print("FNISH PROCESSING")
+        # cv2.destroyAllWindows()  
 
     # track all bodies in a frame
     def track_body(self, frame, verbose=True):
-        results = self.body_model(frame, conf=0.7, classes=[0], verbose=verbose)
+        results = self.body_model(frame, conf=0.75, classes=[0], verbose=verbose)
 
         detections = []
         for result in results:
@@ -116,89 +113,123 @@ class DeepHFR():
 
             sub_frame = frame[y1:y2, x1:x2]
             best_hpe = getHPAxis(sub_frame)
-            best_bbox = (top, right, bottom, left)
+            # best_bbox = self.pixel_in_frame(
+            #     frame, (x1, y1, x2, y2)
+            # )
+
+            best_bbox = (left, top, right, bottom)
 
             return best_bbox, best_hpe  # Return the best-matched face
     
     def find_target(self, frame):
-        # separate between body and face detection to avoid any upcoming errors
-        self.track_body(frame)            # contain all body bbox
-        f_out = self.track_face(frame)    # contain only target (face) bbox
+        self.track_body(frame, verbose=False)            # contain all body bbox
+        f_out = self.track_face(frame)    # contain only target (face) bbox        
 
         for track in self.tracks: 
+
+            if track.time_since_update != 0: 
+                continue
+
             track_id = track.track_id
             ltrb = track.to_ltrb()  # Get left, top, right, bottom format
-            body_bbox = map(int, ltrb)
+            body_bbox = self.pixel_in_frame(
+                frame, tuple(map(int, ltrb))
+            )
 
+            # if tracked without face recognition
             if track_id in self.target_track_id:
                 return body_bbox, f_out, track_id
-            # return body_bbox, f_out, track_id
             
-            if f_out is not None:   # it find the target, but not the stored id
-                self.target_track_id.append(track_id)
+            # if the body tracker cannot recogize the body, but face can be recognized; then update tracker id.
+            if f_out is not None:
+                if self.iou_check(body_bbox, f_out[0]):
+                    self.target_track_id.append(track_id)
 
-                return body_bbox, f_out, track_id
+                    return body_bbox, f_out, track_id
+
+        return None # if cannot track with body and no face to be recognized, the robot cannot follow
             
-        return None
-            
-    def run_system(self, frame, if_draw_body=True, if_draw_face=True, if_draw_axis=True):
+    def run_system(self, frame, if_draw_body=True, if_draw_face=True, if_draw_axis=True, if_show_update=True):
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+        prev_target_id = self.target_track_id.copy()
 
         target_vals = self.find_target(frame)        
 
-        print(target_vals)
         if target_vals is not None:
             body_bbox, f_out, track_id = target_vals
 
             if if_draw_body and body_bbox is not None:
+
                 self.draw_body(frame, body_bbox, track_id)
             
             if if_draw_face and f_out is not None:
                 face_bbox, hpe = f_out
                 self.draw_face(frame, face_bbox, hpe, if_draw_axis)
 
+        if if_show_update and len(prev_target_id) != len(self.target_track_id):            
+            print("UPDATE ID: ", self.target_track_id)
+
         return cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+    
+    def iou_check(self, body_bbox, face_bbox, threshold=0.6):
+        x_b1, y_b1, x_b2, y_b2 = body_bbox
+        x_f1, y_f1, x_f2, y_f2 = face_bbox
 
-    def scale_bbox(self, bbox, scale):
-        w = max(bbox[2], bbox[3]) * scale
-        x= max(bbox[0] + bbox[2]/2 - w/2,0)
-        y= max(bbox[1] + bbox[3]/2 - w/2,0)
-        return np.asarray([x,y,w,w],np.int64)
+        x_left = max(x_b1, x_f1)
+        y_top = max(y_b1, y_f1)
+        x_right = min(x_b2, x_f2)
+        y_bottom = min(y_b2, y_f2)
 
-    def draw_body(self, frame, body_bbox, track_id):
-        x1, y1, x2, y2 = body_bbox
+        if x_right > x_left and y_bottom > y_top:
+            intersection_area = (x_right - x_left) * (y_bottom - y_top)
+        else:
+            intersection_area = 0
 
-        # ensure bbox to be within frame
+        face_area = abs((x_f2 - x_f1) * (y_f2 - y_f1))
+        factor = intersection_area / face_area
+
+        if face_area > 0 and factor >= threshold: # the most cases, the factor should be almost 1
+            return True
+        return False
+    
+    def pixel_in_frame(self, frame, bbox):
+        x1, y1, x2, y2 = bbox
         frame_width, frame_height = frame.shape[1], frame.shape[0]
+
         x1 = max(0, min(x1, frame_width - 1))
         y1 = max(0, min(y1, frame_height - 1))
         x2 = max(0, min(x2, frame_width - 1))
         y2 = max(0, min(y2, frame_height - 1))
 
+        return (x1, y1, x2, y2)
 
-        print(x1, y1, x2, y2)
-        print(frame.shape)
+    def draw_body(self, frame, body_bbox, track_id):
+        # ensure bbox to be within frame
+        x1, y1, x2, y2 = body_bbox
+
         centroid_x = int(np.ceil((x1 + x2) / 2))
         centroid_y = int(np.ceil((y1 + y2) / 2))
 
         color = (255, 0, 0)
         cv2.rectangle(frame, (x1, y1), (x2, y2), color, 4)
-        cv2.putText(frame, f"ID {track_id}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 3, color, 10)
+        cv2.putText(frame, f"ID {track_id}", (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 2, color, 5)
         cv2.circle(frame, (centroid_x, centroid_y), radius=10, color=color, thickness=-1)  # Filled circle
 
     def draw_face(self, frame, face_bbox, hpe, if_draw_axis=True):
-        top, right, bottom, left = face_bbox # x1 = left, y1 = top, x2 = right, y2 = bottom 
+        # top, right, bottom, left = face_bbox # x1 = left, y1 = top, x2 = right, y2 = bottom 
+        # frame = cv2.rectangle(frame,(left, top), (right, bottom),color=(0, 0, 255),thickness=4) # draw face
 
-        frame = cv2.rectangle(frame,(left, top), (right, bottom),color=(0,0,255),thickness=2) # draw face
-
-        # x1 = left
-        # y1 = top
-        # x2 = right
-        # y2 = bottom
+        x1, y1, x2, y2 = face_bbox
+        frame = cv2.rectangle(frame,(x1, y1), (x2, y2),color=(0, 0, 255),thickness=4) # draw face
         
-        # if if_draw_axis:
-        #     frame[y_f1:y_f2, x_f1:x_f2] = \
-        #         drawAxis(frame[y_f1:y_f2, x_f1:x_f2], hpe, size=50)    # draw axes on face
+        if if_draw_axis and hpe is not None:
+            try:
+                frame[y1:y2, x1:x2] = \
+                    drawAxis(frame[y1:y2, x1:x2], hpe, size=50)    # draw axes on face
+            except:
+                pass
+
 
     # def find_target(self, frame):
     #     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
