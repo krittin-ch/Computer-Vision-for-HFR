@@ -15,11 +15,18 @@ video_capture = cv2.VideoCapture(0)
 
 while True:
     ret, frame = video_capture.read()
+    # frame = deep_hfr.run_system(
+    #     frame, 
+    #     if_draw_body=True,
+    #     if_draw_face=False,
+    #     if_draw_axis=False
+    # )
+
     frame = deep_hfr.run_system(
         frame, 
-        if_draw_axis=True,
-        if_draw_body=True,
-        if_draw_face=True
+        if_draw_body=False,
+        if_draw_face=True,
+        if_draw_axis=False
     )
 
     cv2.imshow('Video', frame)

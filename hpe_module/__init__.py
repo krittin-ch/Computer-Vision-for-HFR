@@ -150,6 +150,6 @@ def getHPAxis(frame):
 
             hpe_out = (roll, pitch, yaw)
 
-            return faces, hpe_out
+            return hpe_out
         
     return None

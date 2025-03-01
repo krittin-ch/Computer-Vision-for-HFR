@@ -8,15 +8,14 @@ import time
 
 import face_recognition
 
-path = "fr_data/"  # Change this to your actual image directory
-img1 = path + "tin_1.jpg"
-img2 = path + "tin_1.jpg"
+path = "database/"  # Change this to your actual image directory
+img = path + "target_face.jpg"
 
 # Get a reference to webcam #0 (the default one)
 video_capture = cv2.VideoCapture(0)
 
 # Load a second sample picture and learn how to recognize it.
-tin_image = face_recognition.load_image_file(img1)
+tin_image = face_recognition.load_image_file(img)
 tin_face_encoding = face_recognition.face_encodings(tin_image)[0]
 
 # Create arrays of known face encodings and their names
