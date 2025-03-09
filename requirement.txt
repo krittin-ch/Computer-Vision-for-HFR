@@ -1,6 +1,4 @@
-scikit-learn
-xgboost
-mediapipe-rpi4
-pytorch
-torchvision
-torchaudiow
+deep_sort_realtime
+numpy
+opencv-python
+ultralytics
