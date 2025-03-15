@@ -1,3 +1,4 @@
+import sys
 from hpe_module import Network, load_snapshot, genAxis, getAxis, saveImgAxis
 import cv2
 import torch
@@ -107,6 +108,8 @@ while True:
 
         centroid_x = int(np.ceil((x1 + x2) / 2))
         centroid_y = int(np.ceil((y1 + y2) / 2))
+        print(type(x1))
+        print(sys.getsizeof(x1))
 
         color = (255, 0, 255)
         # Draw bounding box
@@ -117,6 +120,7 @@ while True:
         # if frame[y1:y2, x1:x2].size != 0:
         try:
             frame[y1:y2, x1:x2], hpe_out = getAxis(frame[y1:y2, x1:x2])
+            print(hpe_out[0].dtype)
             direction = get_face_direction(hpe_out)
             cv2.putText(frame, f"DIR {direction}", (x2, y2 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
         except:
